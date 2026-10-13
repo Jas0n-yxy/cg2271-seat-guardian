@@ -179,7 +179,7 @@ static void uartTxTask(void *p)
 		snprintf(line, sizeof(line), "STATUS,%s,%d,%d,%d\n",
 				stateName(copy.state), copy.distance_cm, copy.noise_events, copy.touch_events);
 		uart_link_send(line);
-		PRINTF("[TX] %s", line);
+		PRINTF("[TX] %.*s\r\n", (int)strcspn(line, "\n"), line);	/* the terminal needs \r\n */
 #if DEBUG_PINS
 		/* Raw input levels: if a level never changes, check the wiring or the module */
 		PRINTF("[PIN] sound=%d touch=%d\r\n",

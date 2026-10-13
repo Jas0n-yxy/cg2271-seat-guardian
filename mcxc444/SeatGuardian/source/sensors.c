@@ -24,14 +24,13 @@ static void initPortAInterrupts(void)
 	NVIC_DisableIRQ(PORTA_IRQn);
 	SIM->SCGC5 |= SIM_SCGC5_PORTA_MASK;
 
-	// GPIO, input, interrupt on rising edge (IRQC = 0b1001), like Lab 3 isr_poll.c
-	// TODO (meet-up #2): check each module's digital output polarity and
-	// change to falling edge (0b1010) if it pulls LOW when triggered.
-	const int pins[] = { SOUND_PIN, TOUCH_PIN };
-	for (int i = 0; i < 2; i++) {
-		PORTA->PCR[pins[i]] = PORT_PCR_MUX(1) | PORT_PCR_IRQC(0b1001);
-		GPIOA->PDDR &= ~(1 << pins[i]);
-	}
+	// GPIO inputs, like Lab 3 isr_poll.c.
+	// Sound: interrupt on EITHER edge (IRQC = 0b1011), because sound modules differ
+	// in polarity (some idle HIGH and pulse LOW on a clap). SeatTask debounces.
+	// Touch: rising edge (IRQC = 0b1001); confirmed working on 13 Oct.
+	PORTA->PCR[SOUND_PIN] = PORT_PCR_MUX(1) | PORT_PCR_IRQC(0b1011);
+	PORTA->PCR[TOUCH_PIN] = PORT_PCR_MUX(1) | PORT_PCR_IRQC(0b1001);
+	GPIOA->PDDR &= ~((1 << SOUND_PIN) | (1 << TOUCH_PIN));
 
 	NVIC_SetPriority(PORTA_IRQn, 1);
 	NVIC_ClearPendingIRQ(PORTA_IRQn);
