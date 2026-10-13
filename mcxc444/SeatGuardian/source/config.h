@@ -27,6 +27,9 @@
 /* ---------- Buzzer (proposed) ---------- */
 #define BUZZER_PIN		2	/* PTB2 (header A2); TPM2_CH0 if a passive buzzer needs PWM */
 
+/* ---------- Debug ---------- */
+#define DEBUG_PINS		1	/* print raw sound/touch pin levels every second; set 0 for the demo */
+
 /* ---------- Task priorities (configMAX_PRIORITIES = 5) ---------- */
 #define PRIO_SEAT		3	/* seat state machine, reacts to ISR events */
 #define PRIO_SENSOR		2

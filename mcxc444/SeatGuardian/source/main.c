@@ -180,6 +180,11 @@ static void uartTxTask(void *p)
 				stateName(copy.state), copy.distance_cm, copy.noise_events, copy.touch_events);
 		uart_link_send(line);
 		PRINTF("[TX] %s", line);
+#if DEBUG_PINS
+		/* Raw input levels: if a level never changes, check the wiring or the module */
+		PRINTF("[PIN] sound=%d touch=%d\r\n",
+				(int)((GPIOA->PDIR >> SOUND_PIN) & 1), (int)((GPIOA->PDIR >> TOUCH_PIN) & 1));
+#endif
 
 		vTaskDelay(pdMS_TO_TICKS(STATUS_PERIOD_MS));
 	}
