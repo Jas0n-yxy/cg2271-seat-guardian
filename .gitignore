@@ -1,0 +1,19 @@
+# Secrets: API keys, Wi-Fi passwords, bot tokens
+esp32/**/secrets.h
+
+# MCUXpresso build output and IDE files
+Debug/
+Release/
+*.axf
+*.map
+*.o
+*.d
+*.su
+.settings/
+.metadata/
+
+# OS / editor
+.DS_Store
+__MACOSX/
+Thumbs.db
+*.swp

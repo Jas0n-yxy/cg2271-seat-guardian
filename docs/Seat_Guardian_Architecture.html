@@ -1,0 +1,339 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Seat Guardian Architecture</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,700&family=Source+Sans+3:wght@400;600&family=JetBrains+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: header → full-width system diagram (boxes tinted by owning role) → role legend cards → responsibilities table → weekly milestones */
+:root {
+  --bg: #f5f7f8;
+  --surface: #ffffff;
+  --fg: #18212b;
+  --muted: #5a6573;
+  --line: #d9dfe6;
+  --wire: #7d8896;
+  /* one hue per role, used in the diagram and the tables */
+  --ra: #0f7b6c; --ra-soft: #e1f2ef;   /* A sensors & ISRs */
+  --rb: #3a5a9f; --rb-soft: #e6ebf6;   /* B RTOS core */
+  --rc: #7a4fb0; --rc-soft: #efe8f8;   /* C protocol */
+  --rd: #b4540f; --rd-soft: #fbeadb;   /* D ESP32 AI */
+  --re: #4d6b1f; --re-soft: #ebf2df;   /* E cloud & docs */
+  --board: #fbfcfd;
+  --font-display: "Bricolage Grotesque", "Segoe UI", system-ui, sans-serif;
+  --font-body: "Source Sans 3", "Segoe UI", system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #11161c; --surface: #19202a; --fg: #e5e9ef; --muted: #9aa5b4; --line: #2b3441; --wire: #8b97a6;
+    --ra: #4cc2ae; --ra-soft: #163430; --rb: #8fa8e6; --rb-soft: #1c2640; --rc: #b896e6; --rc-soft: #2a2138;
+    --rd: #f09a5a; --rd-soft: #33241a; --re: #9cc25e; --re-soft: #212b17; --board: #151b23; color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #11161c; --surface: #19202a; --fg: #e5e9ef; --muted: #9aa5b4; --line: #2b3441; --wire: #8b97a6;
+  --ra: #4cc2ae; --ra-soft: #163430; --rb: #8fa8e6; --rb-soft: #1c2640; --rc: #b896e6; --rc-soft: #2a2138;
+  --rd: #f09a5a; --rd-soft: #33241a; --re: #9cc25e; --re-soft: #212b17; --board: #151b23; color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body {
+  background: var(--bg); color: var(--fg);
+  font-family: var(--font-body); font-size: 16px; line-height: 1.55;
+  padding-inline: 16px; padding-block: 32px 56px;
+}
+.wrap { max-width: 1140px; margin: 0 auto; display: grid; gap: 40px; }
+h1, h2, h3 { font-family: var(--font-display); text-wrap: balance; margin: 0; line-height: 1.15; }
+h1 { font-size: clamp(1.8rem, 4vw, 2.5rem); }
+h2 { font-size: 1.4rem; }
+h3 { font-size: 1.02rem; }
+p { margin: 0; }
+.eyebrow { font-family: var(--font-mono); font-size: .78rem; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+header { display: grid; gap: 10px; max-width: 76ch; }
+header p { color: var(--muted); }
+section { display: grid; gap: 14px; }
+section > p.lead { color: var(--muted); max-width: 80ch; }
+
+/* diagram */
+.diagram { overflow-x: auto; background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 12px; }
+.diagram svg { display: block; width: 100%; min-width: 900px; height: auto; }
+svg text { font-family: var(--font-body); fill: var(--fg); }
+svg .t { font-size: 13.5px; font-weight: 600; }
+svg .s { font-size: 11.5px; fill: var(--muted); }
+svg .mono { font-family: var(--font-mono); font-size: 11px; fill: var(--muted); }
+svg .board { fill: var(--board); stroke: var(--line); stroke-width: 1.5; }
+svg .board-label { font-family: var(--font-display); font-size: 15px; font-weight: 700; }
+svg .board-sub { font-family: var(--font-mono); font-size: 10.5px; fill: var(--muted); letter-spacing: .04em; }
+svg .cloud { fill: none; stroke: var(--line); stroke-width: 1.5; stroke-dasharray: 6 5; }
+svg .wire { stroke: var(--wire); stroke-width: 1.6; fill: none; }
+svg .wire-c { stroke: var(--rc); stroke-width: 2; fill: none; }
+svg .ah { fill: var(--wire); }
+svg .ah-c { fill: var(--rc); }
+svg .user { fill: var(--surface); stroke: var(--wire); stroke-width: 1.2; stroke-dasharray: 3 3; }
+.ra rect.box { fill: var(--ra-soft); stroke: var(--ra); } .ra circle { fill: var(--ra); }
+.rb rect.box { fill: var(--rb-soft); stroke: var(--rb); } .rb circle { fill: var(--rb); }
+.rc rect.box { fill: var(--rc-soft); stroke: var(--rc); } .rc circle { fill: var(--rc); }
+.rd rect.box { fill: var(--rd-soft); stroke: var(--rd); } .rd circle { fill: var(--rd); }
+.re rect.box { fill: var(--re-soft); stroke: var(--re); } .re circle { fill: var(--re); }
+svg rect.box { stroke-width: 1.4; }
+svg .badge { font-family: var(--font-mono); font-size: 10.5px; font-weight: 500; fill: var(--surface); text-anchor: middle; }
+
+/* role cards */
+.roles { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 200px), 1fr)); gap: 12px; }
+.role { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 14px 16px; display: grid; gap: 6px; align-content: start; min-width: 0; }
+.role .letter { width: 28px; height: 28px; border-radius: 50%; display: grid; place-items: center; font-family: var(--font-mono); font-weight: 500; color: var(--surface); background: var(--c); }
+.role .who { font-family: var(--font-display); font-size: 1.05rem; font-weight: 600; }
+.role .what { color: var(--c); font-weight: 600; font-size: .92rem; }
+.A { --c: var(--ra); --soft: var(--ra-soft); }
+.B { --c: var(--rb); --soft: var(--rb-soft); }
+.C { --c: var(--rc); --soft: var(--rc-soft); }
+.D { --c: var(--rd); --soft: var(--rd-soft); }
+.E { --c: var(--re); --soft: var(--re-soft); }
+
+/* tables */
+.tbl { overflow-x: auto; border: 1px solid var(--line); border-radius: 10px; background: var(--surface); }
+table { border-collapse: collapse; width: 100%; font-size: .93rem; }
+th, td { text-align: left; padding: 10px 12px; border-bottom: 1px solid var(--line); vertical-align: top; }
+th { font-size: .76rem; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); background: var(--bg); font-weight: 600; }
+tr:last-child td { border-bottom: 0; }
+.resp table { min-width: 760px; }
+.resp td:first-child { white-space: nowrap; }
+.chip { display: inline-flex; align-items: center; gap: 6px; font-weight: 600; }
+.chip::before { content: ""; width: 10px; height: 10px; border-radius: 50%; background: var(--c); }
+ul { margin: 0; padding-left: 1.1em; display: grid; gap: 3px; }
+.week td:first-child { font-family: var(--font-mono); font-size: .85rem; white-space: nowrap; }
+.week table { min-width: 620px; }
+.due { font-family: var(--font-mono); font-size: .78rem; color: var(--rd); }
+footer { color: var(--muted); font-size: .88rem; max-width: 80ch; }
+</style>
+</head>
+<body>
+
+<div class="wrap">
+  <header>
+    <span class="eyebrow">CG2271 AS4 mini project · Group B01</span>
+    <h1>Seat Guardian: system architecture and roles</h1>
+    <p>A smart library seat monitor. The MCXC444 senses the seat and gives local feedback in real time; the ESP32 links it to an LLM, a Telegram assistant and a Firebase log. Each box in the diagram is coloured by the role that owns it.</p>
+  </header>
+
+  <section>
+    <h2>System diagram</h2>
+    <div class="diagram">
+      <svg viewBox="0 0 1120 670" role="img" aria-labelledby="dg-title dg-desc">
+        <title id="dg-title">Seat Guardian architecture</title>
+        <desc id="dg-desc">MCXC444 with ultrasonic, sound and touch sensors, ISRs, FreeRTOS tasks, RGB LED and buzzer, linked by framed UART packets to an ESP32 running UART, LLM, Firebase and Telegram tasks plus an LDR and servo, which talk over HTTPS to NUS SoCLaaS, Firebase and Telegram used by students and librarians.</desc>
+        <defs>
+          <marker id="arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="ah" d="M0,0 L10,5 L0,10 z"/></marker>
+          <marker id="arrc" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="ah-c" d="M0,0 L10,5 L0,10 z"/></marker>
+        </defs>
+
+        <!-- ===== MCXC444 board ===== -->
+        <rect class="board" x="20" y="20" width="400" height="636" rx="12"/>
+        <text class="board-label" x="36" y="46">FRDM-MCXC444</text>
+        <text class="board-sub" x="36" y="64">FREERTOS · PRE-EMPTION + TIME SLICING ON</text>
+
+        <g class="ra">
+          <rect class="box" x="36" y="96" width="110" height="54" rx="7"/>
+          <text class="t" x="46" y="118">Ultrasonic</text><text class="s" x="46" y="137">HC-SR04 · polled</text>
+          <circle cx="134" cy="108" r="8"/><text class="badge" x="134" y="112">A</text>
+        </g>
+        <g class="ra">
+          <rect class="box" x="176" y="96" width="110" height="54" rx="7"/>
+          <text class="t" x="186" y="118">Sound</text><text class="s" x="186" y="137">big sound · interrupt</text>
+          <circle cx="274" cy="108" r="8"/><text class="badge" x="274" y="112">A</text>
+        </g>
+        <g class="ra">
+          <rect class="box" x="296" y="96" width="108" height="54" rx="7"/>
+          <text class="t" x="306" y="118">Touch</text><text class="s" x="306" y="137">KY-036 · interrupt</text>
+          <circle cx="392" cy="108" r="8"/><text class="badge" x="392" y="112">A</text>
+        </g>
+
+        <g class="ra">
+          <rect class="box" x="176" y="180" width="228" height="46" rx="7"/>
+          <text class="t" x="186" y="200">NoiseISR · TouchISR</text><text class="s" x="186" y="217">only give a binary semaphore</text>
+          <circle cx="392" cy="192" r="8"/><text class="badge" x="392" y="196">A</text>
+        </g>
+
+        <g class="ra">
+          <rect class="box" x="36" y="260" width="110" height="64" rx="7"/>
+          <text class="t" x="46" y="282">SensorTask</text><text class="s" x="46" y="299">P2 · every 500 ms</text><text class="s" x="46" y="315">distance → queue</text>
+          <circle cx="134" cy="272" r="8"/><text class="badge" x="134" y="276">A</text>
+        </g>
+        <g class="rb">
+          <rect class="box" x="176" y="260" width="228" height="64" rx="7"/>
+          <text class="t" x="186" y="282">SeatTask · P3 (highest)</text><text class="s" x="186" y="299">seat state machine</text>
+          <text class="mono" x="186" y="315">FREE→OCCUPIED→AWAY→HOLD/ABANDON</text>
+          <circle cx="392" cy="272" r="8"/><text class="badge" x="392" y="276">B</text>
+        </g>
+        <g class="rb">
+          <rect class="box" x="176" y="334" width="228" height="34" rx="7"/>
+          <text class="s" x="186" y="356">mutex · shared SeatState struct</text>
+          <circle cx="392" cy="351" r="8"/><text class="badge" x="392" y="355">B</text>
+        </g>
+
+        <g class="rb">
+          <rect class="box" x="36" y="392" width="368" height="50" rx="7"/>
+          <text class="t" x="46" y="413">ActuatorTask · P2</text><text class="s" x="46" y="431">reads cmdQueue from ESP32, drives LED + buzzer</text>
+          <circle cx="392" cy="404" r="8"/><text class="badge" x="392" y="408">B</text>
+        </g>
+        <g class="rb">
+          <rect class="box" x="36" y="470" width="178" height="50" rx="7"/>
+          <text class="t" x="46" y="491">Onboard RGB LED</text><text class="s" x="46" y="509">PWM · seat state colour</text>
+          <circle cx="202" cy="482" r="8"/><text class="badge" x="202" y="486">B</text>
+        </g>
+        <g class="rb">
+          <rect class="box" x="226" y="470" width="178" height="50" rx="7"/>
+          <text class="t" x="236" y="491">Buzzer</text><text class="s" x="236" y="509">PWM · warning chirps</text>
+          <circle cx="392" cy="482" r="8"/><text class="badge" x="392" y="486">B</text>
+        </g>
+
+        <g class="rc">
+          <rect class="box" x="36" y="546" width="368" height="42" rx="7"/>
+          <text class="t" x="46" y="566">UartTxTask · P1</text><text class="s" x="160" y="566">packetises SeatState → ESP32</text>
+          <circle cx="392" cy="567" r="8"/><text class="badge" x="392" y="571">C</text>
+        </g>
+        <g class="rc">
+          <rect class="box" x="36" y="598" width="368" height="42" rx="7"/>
+          <text class="t" x="46" y="618">UART2 ISR</text><text class="s" x="160" y="618">bytes → frames → cmdQueue</text>
+          <circle cx="392" cy="619" r="8"/><text class="badge" x="392" y="623">C</text>
+        </g>
+
+        <!-- MCXC444 wires -->
+        <line class="wire" x1="91" y1="150" x2="91" y2="258" marker-end="url(#arr)"/>
+        <line class="wire" x1="231" y1="150" x2="231" y2="178" marker-end="url(#arr)"/>
+        <line class="wire" x1="350" y1="150" x2="350" y2="178" marker-end="url(#arr)"/>
+        <line class="wire" x1="290" y1="226" x2="290" y2="258" marker-end="url(#arr)"/>
+        <text class="mono" x="296" y="246">semaphore</text>
+        <line class="wire" x1="146" y1="292" x2="174" y2="292" marker-end="url(#arr)"/>        <line class="wire" x1="125" y1="442" x2="125" y2="468" marker-end="url(#arr)"/>
+        <line class="wire" x1="315" y1="442" x2="315" y2="468" marker-end="url(#arr)"/>
+        <polyline class="wire-c" points="36,619 28,619 28,417 34,417" marker-end="url(#arrc)"/>
+
+        <!-- ===== UART link ===== -->
+        <text class="t" x="470" y="470" text-anchor="middle">UART 9600</text>
+        <text class="mono" x="470" y="489" text-anchor="middle">0xAA|type|len</text>
+        <text class="mono" x="470" y="505" text-anchor="middle">|data|XOR</text>
+        <text class="mono" x="470" y="521" text-anchor="middle">ACK / NAK</text>
+        <line class="wire-c" x1="404" y1="567" x2="534" y2="567" marker-end="url(#arrc)"/>
+        <line class="wire-c" x1="536" y1="619" x2="406" y2="619" marker-end="url(#arrc)"/>
+        <text class="s" x="470" y="560" text-anchor="middle">status</text>
+        <text class="s" x="470" y="612" text-anchor="middle">commands</text>
+
+        <!-- ===== ESP32 board ===== -->
+        <rect class="board" x="520" y="20" width="260" height="636" rx="12"/>
+        <text class="board-label" x="536" y="46">ESP32-S2</text>
+        <text class="board-sub" x="536" y="64">ARDUINO · FREERTOS TASKS</text>
+
+        <g class="rd">
+          <rect class="box" x="536" y="96" width="228" height="54" rx="7"/>
+          <text class="t" x="546" y="118">Photoresistor (LDR)</text><text class="s" x="546" y="137">polled ADC · light level</text>
+          <circle cx="752" cy="108" r="8"/><text class="badge" x="752" y="112">D</text>
+        </g>
+        <g class="rd">
+          <rect class="box" x="536" y="180" width="228" height="56" rx="7"/>
+          <text class="t" x="546" y="202">LLMTask</text><text class="s" x="546" y="221">seat decision · intent parsing</text>
+          <circle cx="752" cy="192" r="8"/><text class="badge" x="752" y="196">D</text>
+        </g>
+        <g class="re">
+          <rect class="box" x="536" y="256" width="228" height="56" rx="7"/>
+          <text class="t" x="546" y="278">FirebaseTask</text><text class="s" x="546" y="297">log events · daily report</text>
+          <circle cx="752" cy="268" r="8"/><text class="badge" x="752" y="272">E</text>
+        </g>
+        <g class="re">
+          <rect class="box" x="536" y="332" width="228" height="56" rx="7"/>
+          <text class="t" x="546" y="354">TelegramTask</text><text class="s" x="546" y="373">bot messages in / out</text>
+          <circle cx="752" cy="344" r="8"/><text class="badge" x="752" y="348">E</text>
+        </g>
+        <g class="rd">
+          <rect class="box" x="536" y="420" width="228" height="54" rx="7"/>
+          <text class="t" x="546" y="442">Servo SG90</text><text class="s" x="546" y="461">RESERVED / FREE flag</text>
+          <circle cx="752" cy="432" r="8"/><text class="badge" x="752" y="436">D</text>
+        </g>
+        <text class="s" x="650" y="510" text-anchor="middle">tasks share data through queues;</text>
+        <text class="s" x="650" y="526" text-anchor="middle">slow HTTPS never blocks the UART</text>
+        <g class="rc">
+          <rect class="box" x="536" y="546" width="228" height="94" rx="7"/>
+          <text class="t" x="546" y="568">UartTask</text><text class="s" x="546" y="587">parse frames · check XOR</text>
+          <text class="s" x="546" y="604">send ACK / NAK, retransmit</text><text class="s" x="546" y="621">route to the other tasks</text>
+          <circle cx="752" cy="558" r="8"/><text class="badge" x="752" y="562">C</text>
+        </g>
+
+        <!-- ===== Cloud ===== -->
+        <rect class="cloud" x="800" y="20" width="300" height="636" rx="12"/>
+        <text class="board-label" x="816" y="46">Cloud &amp; users</text>
+        <text class="board-sub" x="816" y="64">HTTPS OVER WI-FI</text>
+
+        <g class="rd">
+          <rect class="box" x="816" y="180" width="268" height="56" rx="7"/>
+          <text class="t" x="826" y="202">NUS SoCLaaS LLM</text><text class="s" x="826" y="221">chat completions → JSON action</text>
+          <circle cx="1072" cy="192" r="8"/><text class="badge" x="1072" y="196">D</text>
+        </g>
+        <g class="re">
+          <rect class="box" x="816" y="256" width="268" height="56" rx="7"/>
+          <text class="t" x="826" y="278">Firebase Realtime DB</text><text class="s" x="826" y="297">events · decisions · read-back</text>
+          <circle cx="1072" cy="268" r="8"/><text class="badge" x="1072" y="272">E</text>
+        </g>
+        <g class="re">
+          <rect class="box" x="816" y="332" width="268" height="56" rx="7"/>
+          <text class="t" x="826" y="354">Telegram Bot API</text><text class="s" x="826" y="373">students &amp; librarian chat</text>
+          <circle cx="1072" cy="344" r="8"/><text class="badge" x="1072" y="348">E</text>
+        </g>
+        <line class="wire" x1="766" y1="208" x2="814" y2="208" marker-start="url(#arr)" marker-end="url(#arr)"/>
+        <line class="wire" x1="766" y1="284" x2="814" y2="284" marker-start="url(#arr)" marker-end="url(#arr)"/>
+        <line class="wire" x1="766" y1="360" x2="814" y2="360" marker-start="url(#arr)" marker-end="url(#arr)"/>
+
+        <rect class="user" x="816" y="430" width="130" height="68" rx="7"/>
+        <text class="t" x="826" y="452">Student</text><text class="s" x="826" y="470">"hold my seat</text><text class="s" x="826" y="486">for 30 mins"</text>
+        <rect class="user" x="954" y="430" width="130" height="68" rx="7"/>
+        <text class="t" x="964" y="452">Librarian</text><text class="s" x="964" y="470">daily LLM report</text><text class="s" x="964" y="486">via Telegram</text>
+        <line class="wire" x1="881" y1="390" x2="881" y2="428" marker-start="url(#arr)" marker-end="url(#arr)"/>
+        <line class="wire" x1="1019" y1="390" x2="1019" y2="428" marker-end="url(#arr)"/>
+
+        <text class="s" x="816" y="548">Fallback: if the LLM times out,</text>
+        <text class="s" x="816" y="564">the boards use a local rule so</text>
+        <text class="s" x="816" y="580">the seat keeps working offline.</text>
+      </svg>
+    </div>
+  </section>
+
+  <section>
+    <h2>Who owns what</h2>
+    <p class="lead">Suggested split by subsystem, so each person owns code that can be built and tested on its own before Week 12 integration. Swap names freely; the boundaries are what matter.</p>
+    <div class="roles">
+      <div class="role A"><span class="letter">A</span><span class="who">Tay Guang Sheng</span><span class="what">MCXC444 sensors &amp; ISRs</span></div>
+      <div class="role B"><span class="letter">B</span><span class="who">Goh Shao Ann</span><span class="what">MCXC444 RTOS core &amp; actuators</span></div>
+      <div class="role C"><span class="letter">C</span><span class="who">Yan Xiangyu</span><span class="what">Board-to-board protocol</span></div>
+      <div class="role D"><span class="letter">D</span><span class="who">Kothari Smeet Ronak</span><span class="what">ESP32 AI &amp; local hardware</span></div>
+      <div class="role E"><span class="letter">E</span><span class="who">Tejas Ananth Kumar</span><span class="what">Cloud services &amp; documentation lead</span></div>
+    </div>
+
+    <div class="tbl resp"><table>
+      <thead><tr><th>Role</th><th>Responsibilities</th><th>Ready by end of Week 10 (23 Oct)</th></tr></thead>
+      <tbody>
+        <tr class="A"><td><span class="chip">A · Guang Sheng</span></td><td><ul><li>HC-SR04 trigger + echo timing with a TPM timer; 5 V echo through a voltage divider</li><li>Sound sensor interrupt with a debounce / counting window</li><li>Touch sensor interrupt; ISRs only give semaphores</li><li>SensorTask (500 ms polling → queue)</li></ul></td><td>All three sensors print correct readings on the MCXC444 terminal</td></tr>
+        <tr class="B"><td><span class="chip">B · Shao Ann</span></td><td><ul><li>Task list and priorities; time slicing + pre-emption enabled in FreeRTOSConfig</li><li>SeatTask state machine (FREE → OCCUPIED → AWAY → ON HOLD / ABANDONED)</li><li>Queues, semaphores, SeatState mutex</li><li>ActuatorTask, RGB LED and buzzer PWM</li></ul></td><td>FSM runs on fake inputs and drives the LED colours</td></tr>
+        <tr class="C"><td><span class="chip">C · Xiangyu</span></td><td><ul><li>Packet format and message-type table shared by both boards</li><li>MCXC444 UART2 ISR + UartTxTask; ESP32 UartTask</li><li>XOR checksum, ACK / NAK, retransmit, resync after bad frames</li><li>Link tests (loopback, corrupted-frame test)</li></ul></td><td>Packets sent both ways with ACK, bad frames rejected</td></tr>
+        <tr class="D"><td><span class="chip">D · Smeet</span></td><td><ul><li>ESP32 task structure (UART / LLM / network tasks, queues)</li><li>SoCLaaS seat-decision prompt, JSON validation, local fallback rule</li><li>LLM intent parsing for Telegram messages (hold / status / release / complaint)</li><li>LDR reading and servo flag (ESP32Servo)</li></ul></td><td>SoCLaaS returns valid JSON for a sample seat state; servo moves</td></tr>
+        <tr class="E"><td><span class="chip">E · Tejas</span></td><td><ul><li>Telegram bot: receive messages, send replies and alerts</li><li>Firebase schema, event logging, reading the day's log back</li><li>Daily LLM report to the librarian</li><li>Report editing, circuit diagram / pin table, demo script</li></ul></td><td>Bot echoes messages; one event written to and read from Firebase; interim report + code zip submitted</td></tr>
+      </tbody>
+    </table></div>
+  </section>
+
+  <section class="week">
+    <h2>Milestones</h2>
+    <div class="tbl"><table>
+      <thead><tr><th>Week</th><th>Goal</th><th>Deadline</th></tr></thead>
+      <tbody>
+        <tr><td>Wk 10 · 19–23 Oct</td><td>Every module works on its own (see last column above)</td><td><span class="due">Interim report + code zip, Fri 23 Oct 23:59</span></td></tr>
+        <tr><td>Wk 11 · 26–30 Oct</td><td>MCXC444 FSM + protocol talk to the ESP32 end to end; LLM decision changes the LED</td><td></td></tr>
+        <tr><td>Wk 12 · 2–6 Nov</td><td>Telegram assistant, Firebase log, daily report and servo integrated; full-system testing</td><td></td></tr>
+        <tr><td>Wk 13 · 9–13 Nov</td><td>Bug fixes, demo rehearsal, each owner writes their final-report section</td><td><span class="due">Demo in lab; final report + code, Fri 13 Nov 23:59</span></td></tr>
+      </tbody>
+    </table></div>
+  </section>
+
+  <footer>Everyone helps with integration testing in Week 12 and with the demo. Role letters match the badges in the diagram.</footer>
+</div>
+</body>
+</html>
