@@ -2,7 +2,7 @@
 
 CG2271 AS4 mini project, group B01. A smart library seat monitor: the MCXC444 senses the seat and gives local feedback under FreeRTOS, and the ESP32 connects it to an LLM (NUS SoCLaaS), a Telegram assistant and a Firebase log.
 
-Architecture diagram: [`docs/Seat_Guardian_Architecture.html`](docs/Seat_Guardian_Architecture.html) (download and open in a browser). Interim report: [`docs/B01_YY_Interim.pdf`](docs/B01_YY_Interim.pdf).
+Wiring guide: [`docs/WIRING.md`](docs/WIRING.md). Architecture diagram: [`docs/Seat_Guardian_Architecture.html`](docs/Seat_Guardian_Architecture.html) (download and open in a browser). Interim report: [`docs/B01_YY_Interim.pdf`](docs/B01_YY_Interim.pdf).
 
 ## Repository layout
 
