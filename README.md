@@ -8,7 +8,7 @@ Architecture diagram: [`docs/Seat_Guardian_Architecture.html`](docs/Seat_Guardia
 
 | Path | What it is |
 |---|---|
-| `mcxc444/source/` | MCXC444 source files. Copy into the `source/` folder of an MCUXpresso FreeRTOS project. |
+| `mcxc444/SeatGuardian/` | Complete MCUXpresso FreeRTOS project (heap 4, time slicing on). Import it; our code is in `source/`. |
 | `esp32/seat_guardian/` | ESP32-S2 Arduino sketch (open the `.ino` in Arduino IDE). |
 | `shared/packet.h` | Board-to-board frame format. Copies sit in both board folders; keep all three identical. |
 | `reference/lab3/` | Our Lab 3 code, kept unchanged for reference. |
@@ -18,9 +18,9 @@ Architecture diagram: [`docs/Seat_Guardian_Architecture.html`](docs/Seat_Guardia
 
 | Project file | Reused from |
 |---|---|
-| `mcxc444/source/uart_link.c` | Lab 3 demo: interrupt-driven UART2 (PTE22/PTE23, 9600 baud), RX lines → queue, TX through the ISR, error counters. Added a TX mutex. |
-| `mcxc444/source/actuators.c` | Lab 2 `as02_2.c`: RGB LED PWM on TPM0. |
-| `mcxc444/source/sensors.c` | Lab 3 Part 6 pattern: PORT interrupt → clear ISFR → `xSemaphoreGiveFromISR`. |
+| `mcxc444/SeatGuardian/source/uart_link.c` | Lab 3 demo: interrupt-driven UART2 (PTE22/PTE23, 9600 baud), RX lines → queue, TX through the ISR, error counters. Added a TX mutex. |
+| `mcxc444/SeatGuardian/source/actuators.c` | Lab 2 `as02_2.c`: RGB LED PWM on TPM0. |
+| `mcxc444/SeatGuardian/source/sensors.c` | Lab 3 Part 6 pattern: PORT interrupt → clear ISFR → `xSemaphoreGiveFromISR`. |
 | `esp32/seat_guardian/seat_guardian.ino` | Lab 3 ESP32 sketch: UART1 on GPIO1/GPIO2, LDR on GPIO4 (12-bit ADC). |
 
 ## Current status
@@ -28,7 +28,7 @@ Architecture diagram: [`docs/Seat_Guardian_Architecture.html`](docs/Seat_Guardia
 | Part | Status |
 |---|---|
 | UART link, RGB LED PWM, LDR | Reused from labs; compiles. Re-test on hardware. |
-| Task / queue / mutex / semaphore skeleton | Done; compiles and links (MCXC444 ~39 KB flash, ~15 KB RAM). |
+| Task / queue / mutex / semaphore skeleton | Done; imports and builds with 0 errors / 0 warnings (~39 KB flash, ~15 KB RAM). |
 | Ultrasonic driver | **TODO meet-up #1** (`sensors.c`, `ultrasonic_read_cm`) |
 | Sound + touch interrupts | Wired in code; **check polarity, add debounce at meet-up #2** |
 | Buzzer, servo | Buzzer GPIO stub; servo **TODO week 10** |
@@ -69,15 +69,17 @@ Pins marked *proposed* are untested; confirm them in the MCXC444 reference manua
 
 ## Build: MCXC444
 
-1. MCUXpresso → *Create a new C/C++ project* → MCXC444 / frdmmcxc444.
-2. Components: **Operating Systems → RTOS**, **Others → RTOS → Heap: heap 4 only**, **Project Template → RTOS**. Next page: tick *Redirect printf/scanf to UART*.
-3. In `freertos/freertos-kernel/template/ARM_CM0/FreeRTOSConfig_Gen.h` set `configUSE_TIME_SLICING` to `1` (pre-emption is already 1). The build prints a warning until you do.
-4. Delete the generated `source/<project>.c` and copy every file from `mcxc444/source/` into the project's `source/` folder. Refresh (F5), Build.
-5. Debug console: MCU-Link COM port at **115200**.
+The repo contains the whole MCUXpresso project (FreeRTOS, heap 4, pre-emption and time slicing already enabled), so there is nothing to set up.
+
+1. MCUXpresso → **File → Import… → General → Existing Projects into Workspace** → Next.
+2. *Select root directory*: the cloned `cg2271-seat-guardian\mcxc444` folder. Tick **SeatGuardian**.
+3. **Leave "Copy projects into workspace" unticked**, so you edit the files inside the repo and `git` sees your changes. Finish.
+4. Select the project → **Build**. Expect `Build Finished. 0 errors`.
+5. **Debug** to flash. Debug console: MCU-Link COM port at **115200**.
 
 If *Debug* hangs at "Target Discovery", flash without the debugger:
 ```
-C:\nxp\LinkServer_25.6.131\LinkServer.exe flash MCXC444:FRDM-MCXC444 load Debug\<project>.axf
+C:\nxp\LinkServer_25.6.131\LinkServer.exe flash MCXC444:FRDM-MCXC444 load mcxc444\SeatGuardian\Debug\SeatGuardian.axf
 ```
 
 ## Build: ESP32
