@@ -176,10 +176,11 @@ static void uartTxTask(void *p)
 			xSemaphoreGive(stateMutex);
 		}
 
-		snprintf(line, sizeof(line), "STATUS,%s,%d,%d,%d\n",
+		snprintf(line, sizeof(line), "STATUS,%s,%d,%d,%d",
 				stateName(copy.state), copy.distance_cm, copy.noise_events, copy.touch_events);
+		PRINTF("[TX] %s\r\n", line);	/* the terminal needs \r\n */
+		strncat(line, "\n", sizeof(line) - strlen(line) - 1);	/* the ESP32 splits lines on \n */
 		uart_link_send(line);
-		PRINTF("[TX] %.*s\r\n", (int)strcspn(line, "\n"), line);	/* the terminal needs \r\n */
 #if DEBUG_PINS
 		/* Raw input levels: if a level never changes, check the wiring or the module */
 		PRINTF("[PIN] sound=%d touch=%d\r\n",
