@@ -22,7 +22,7 @@
 #define SOUND_PIN		12	/* PTA12 (header D3), PORTA interrupt, sound DO */
 #define TOUCH_PIN		13	/* PTA13 (header D8), PORTA interrupt, touch DO */
 #define US_TRIG_PIN		21	/* PTE21, GPIO output, HC-SR04 TRIG */
-#define US_ECHO_PIN		20	/* PTE20, TPM1_CH0 input capture, HC-SR04 ECHO via 1k/2k divider */
+#define US_ECHO_PIN		20	/* PTE20, GPIO input (input capture later), HC-SR04 ECHO via divider */
 
 /* ---------- Buzzer (proposed) ---------- */
 #define BUZZER_PIN		2	/* PTB2 (header A2); TPM2_CH0 if a passive buzzer needs PWM */

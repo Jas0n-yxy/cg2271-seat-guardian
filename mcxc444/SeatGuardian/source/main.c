@@ -73,6 +73,9 @@ static void sensorTask(void *p)
 	TickType_t last = xTaskGetTickCount();
 	while (1) {
 		int cm = ultrasonic_read_cm();
+#if DEBUG_PINS
+		PRINTF("[US] %d cm\r\n", cm);	/* -1 = no echo, -2 = echo stuck high */
+#endif
 		xQueueOverwrite(sensorQueue, &cm);	/* SeatTask only needs the latest reading */
 		vTaskDelayUntil(&last, pdMS_TO_TICKS(SENSOR_PERIOD_MS));
 	}

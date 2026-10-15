@@ -57,6 +57,30 @@ void PORTA_IRQHandler(void)
 
 /* ---------------- Ultrasonic HC-SR04 ---------------- */
 
+/*
+ * Bring-up version: ECHO is read as a plain GPIO and timed with TPM1 running
+ * free at 1 MHz (1 count = 1 us). SensorTask busy-waits for at most ~30 ms per
+ * reading; higher-priority tasks and ISRs can still pre-empt it.
+ * Week 11 TODO: switch ECHO to TPM1_CH0 input capture (PTE20 ALT3) with an
+ * interrupt, so the task blocks instead of polling.
+ */
+#define US_TIMEOUT_US	30000	/* ~5 m round trip; HC-SR04 max range is ~4 m */
+
+static inline uint16_t usNow(void)
+{
+	return (uint16_t)TPM1->CNT;
+}
+
+static inline uint16_t usSince(uint16_t start)
+{
+	return (uint16_t)(usNow() - start);	/* 16-bit wrap is fine below 65 ms */
+}
+
+static inline int echoHigh(void)
+{
+	return (GPIOE->PDIR >> US_ECHO_PIN) & 1;
+}
+
 static void initUltrasonic(void)
 {
 	SIM->SCGC5 |= SIM_SCGC5_PORTE_MASK;
@@ -66,28 +90,52 @@ static void initUltrasonic(void)
 	GPIOE->PDDR |= (1 << US_TRIG_PIN);
 	GPIOE->PCOR = (1 << US_TRIG_PIN);
 
-	// TODO (meet-up #1): ECHO on PTE20 as TPM1_CH0 input capture (ALT3).
-	//  1. Power HC-SR04 from 5 V; ECHO -> 1 kOhm -> PTE20, PTE20 -> 2 kOhm -> GND
-	//     (5 V echo would damage the 3.3 V pin).
-	//  2. Enable TPM1 clock (SIM->SCGC6), choose a prescaler so one count = 1 us
-	//     or similar, set CH0 to capture on both edges (ELSA + ELSB).
-	//  3. Alternative if input capture is awkward: plain GPIO input and read
-	//     TPM1->CNT on each edge from a PORT interrupt (PORTE has no IRQ on
-	//     MCXC444, so the echo pin would have to move to PORTA/PORTC/PORTD).
+	// ECHO: GPIO input (through the voltage divider)
+	PORTE->PCR[US_ECHO_PIN] = PORT_PCR_MUX(1);
+	GPIOE->PDDR &= ~(1 << US_ECHO_PIN);
+
+	// TPM1 free-running at 1 MHz. Its clock source (SIM_SOPT2 TPMSRC = MCGIRCLK,
+	// 8 MHz) is shared by all TPMs and is set up in actuators_init().
+	SIM->SCGC6 |= SIM_SCGC6_TPM1_MASK;
+	TPM1->SC = 0;					// stop while configuring
+	TPM1->CNT = 0;
+	TPM1->MOD = 0xFFFF;
+	TPM1->SC = TPM_SC_PS(3) | TPM_SC_CMOD(1);	// 8 MHz / 8 = 1 MHz, start
 }
 
 int ultrasonic_read_cm(void)
 {
-	// 10 us trigger pulse. At 48 MHz a short loop is enough; check on a scope
-	// or just test the result.
+	uint16_t t0;
+
+	// Previous echo must have finished
+	t0 = usNow();
+	while (echoHigh()) {
+		if (usSince(t0) > US_TIMEOUT_US)
+			return -2;			// ECHO stuck high: check wiring
+	}
+
+	// 10 us trigger pulse (12 us for margin)
 	GPIOE->PSOR = (1 << US_TRIG_PIN);
-	for (volatile int i = 0; i < 120; i++) { }
+	t0 = usNow();
+	while (usSince(t0) < 12) { }
 	GPIOE->PCOR = (1 << US_TRIG_PIN);
 
-	// TODO (meet-up #1): measure the ECHO high time in microseconds,
-	// time out after ~30 ms (no object), then:
-	//     distance_cm = echo_us / 58;
-	return -1;
+	// Wait for ECHO to rise
+	t0 = usNow();
+	while (!echoHigh()) {
+		if (usSince(t0) > US_TIMEOUT_US)
+			return -1;			// no echo started: power, wiring or divider too weak
+	}
+
+	// Measure how long ECHO stays high
+	t0 = usNow();
+	while (echoHigh()) {
+		if (usSince(t0) > US_TIMEOUT_US)
+			return -1;			// nothing in range
+	}
+	uint16_t width = usSince(t0);
+
+	return width / 58;				// sound: ~58 us per cm, there and back
 }
 
 /* ---------------- Init ---------------- */

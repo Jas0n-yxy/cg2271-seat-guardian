@@ -72,7 +72,18 @@ HC-SR04 Echo ──[ 1 kΩ ]──┬──► MCXC444 PTE20
 No 2 kΩ resistor? Use two 1 kΩ resistors in series instead.
 ```
 
-**Test (after the driver is written):** with a hand at 10 / 30 / 50 cm, the printed distance is within ±2 cm. Closer than 60 cm turns the LED blue.
+The rule is: **the bottom resistor should be about twice the top one.** Other combinations:
+
+| Top (Echo → PTE20) | Bottom (PTE20 → GND) | PTE20 sees | OK? |
+|---|---|---|---|
+| 1 kΩ | 2 kΩ | 3.33 V | ✅ |
+| 2 kΩ | 2 kΩ + 2 kΩ in series | 3.33 V | ✅ |
+| 2 kΩ | 2 kΩ | 2.5 V | ⚠️ marginal: the pin needs about 0.7 × 3.3 V ≈ 2.3 V to read HIGH, so a weak 5 V supply can make readings drop out |
+| 1 kΩ | 2 kΩ + 2 kΩ in series | 4.0 V | ❌ too high, can damage the pin |
+
+If the module is an **HC-SR04P** (3–5.5 V version), power it from **3.3 V** instead and connect Echo straight to PTE20 with no divider.
+
+**Test:** the MCXC444 terminal prints `[US] <n> cm` twice a second. With a hand or a book at 10 / 30 / 50 cm, the distance is within ±2 cm. Closer than 60 cm turns the LED blue. `-1` means no echo was received; `-2` means Echo is stuck high.
 
 ## Finding the pins
 
