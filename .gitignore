@@ -17,3 +17,6 @@ Release/
 __MACOSX/
 Thumbs.db
 *.swp
+
+# Arduino IDE 2 workspace settings
+.theia/
